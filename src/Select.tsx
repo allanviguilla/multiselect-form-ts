@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import style from './Select.module.css'
 
 export type SelectOption = {
@@ -25,6 +25,8 @@ type SelectProps = {
 export function Select({ multiple, value, onChange, options }: SelectProps) {
   const [openMenu, setOpenMenu] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
+
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const handleClick = () => {
     multiple ? onChange([]) : onChange(undefined)
@@ -63,10 +65,50 @@ export function Select({ multiple, value, onChange, options }: SelectProps) {
 
   useEffect(() => {
     if(openMenu) setHighlightedIndex(0);
-  }, [openMenu]);
+  }, [openMenu])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if(e.target != containerRef.current) return
+
+      switch(e.code) {
+        case "Enter":
+        case "Space":
+          setOpenMenu(!openMenu)
+          if(openMenu) handleSelectOption(options[highlightedIndex])
+          break
+        case "ArrowUp":
+        case "ArrowDown": {
+          if(!openMenu) {
+            setOpenMenu(true)
+            break
+          }
+          const newValue = highlightedIndex + (e.code === "ArrowDown" ? 1 : -1)
+          if(newValue >= 0 && newValue < options.length) {
+            setHighlightedIndex(newValue)
+          }
+          break
+        }
+        case "Escape":
+          setOpenMenu(false)
+          break
+      }
+    }
+    containerRef.current?.addEventListener("keydown", handler)
+
+    return () => {
+      containerRef.current?.removeEventListener("keydown", handler)
+    }
+  }, [openMenu, highlightedIndex, options])
 
   return (
-    <div className={style.container} tabIndex={0} onClick={() => setOpenMenu(!openMenu)} onBlur={() => setOpenMenu(!openMenu)}>
+    <div
+      className={style.container}
+      tabIndex={0}
+      onClick={() => setOpenMenu(!openMenu)}
+      onBlur={() => setOpenMenu(!openMenu)}
+      ref={containerRef}
+    >
       <span className={style.value}>{showSingleOrMultiSelect}</span>
       <button
         className={style['clear-btn']}
